@@ -68,7 +68,7 @@ EXCEPTION_COUNT = Counter(
 REQUEST_LATENCY = Histogram(
     "agent_request_latency_seconds",
     "Request latency in seconds",
-    ["prompt_version", "route"],
+    ["prompt_version", "route", "outcome"],
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
 )
 
@@ -150,13 +150,24 @@ def ask():
     Accepts JSON with 'message' field.
     Returns rejection status, reason, prompt version, and answer.
     """
-    start_time = time.time()
+    route = "/ask"
+    outcome = "error"
 
-    REQUEST_COUNT.labels(prompt_version=PROMPT_VERSION, route="/ask").inc()
+    start_time = time.time()
+    REQUEST_COUNT.labels(prompt_version=PROMPT_VERSION, route=route).inc()
 
     try:
         data = request.get_json()
         if not data or "message" not in data:
+            REJECTION_COUNT.labels(
+                prompt_version=PROMPT_VERSION,
+                reason="invalid_request",
+                pattern_id="none",
+            ).inc()
+
+            HTTP_STATUS_COUNT.labels(route=route, status_code="400").inc()
+
+            outcome = "rejected"
             return jsonify(
                 {
                     "error": "Missing required field: message",
@@ -168,6 +179,9 @@ def ask():
             ), 400
 
         message = data["message"]
+        MESSAGE_LENGTH.labels(prompt_version=PROMPT_VERSION).observe(
+            amount=len(message.encode("utf-8"))
+        )
         rejected, reason, pattern_id = classify_rejection(message)
 
         if rejected:
@@ -177,35 +191,57 @@ def ask():
                 reason=reason,
                 pattern_id=pattern_id,
             ).inc()
+
+            REJECTION_PATTERN_COUNT.labels(
+                prompt_version=PROMPT_VERSION,
+                reason=reason,
+                pattern_id=pattern_id,
+            ).inc()
+
+            outcome = "rejected"
             response = {
                 "rejected": True,
                 "reason": reason,
-                "pattern_id": pattern_id,
                 "prompt_version": PROMPT_VERSION,
                 "answer": f"I cannot process this request due to: {reason}",
             }
         else:
+            ACCEPTED_COUNT.labels(
+                prompt_version=PROMPT_VERSION,
+                route=route,
+            ).inc()
+
+            outcome = "accepted"
             response = {
                 "rejected": False,
                 "reason": None,
-                "pattern_id": None,
                 "prompt_version": PROMPT_VERSION,
                 "answer": generate_response(message),
             }
 
+        HTTP_STATUS_COUNT.labels(route=route, status_code="200").inc()
         return jsonify(response), 200
+
+    except Exception:
+        EXCEPTION_COUNT.labels(route=route).inc()
+        HTTP_STATUS_COUNT.labels(route=route, status_code="500").inc()
+        raise
 
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(
-            prompt_version=PROMPT_VERSION, route="/ask"
+            prompt_version=PROMPT_VERSION,
+            route=route,
+            outcome=outcome,
         ).observe(latency)
 
 
 @app.route("/healthz", methods=["GET"])
 def healthz():
     """Health check endpoint."""
-    REQUEST_COUNT.labels(prompt_version=PROMPT_VERSION, route="/healthz").inc()
+    route = "/healthz"
+    REQUEST_COUNT.labels(prompt_version=PROMPT_VERSION, route=route).inc()
+    HTTP_STATUS_COUNT.labels(route=route, status="200").inc()
     return jsonify(
         {"status": "healthy", "prompt_version": PROMPT_VERSION}
     ), 200
