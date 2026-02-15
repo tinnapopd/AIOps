@@ -29,3 +29,13 @@ grafana-data/
 
 # Internal Instructions
 CANDIDATE_INSTRUCTIONS.md
+
+# Code quality reports
+.ruff_cache/
+
+# Test and coverage reports
+junit/
+htmlcov/
+coverage.xml
+.coverage
+.pytest_cache/

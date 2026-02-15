@@ -13,25 +13,34 @@ groups:
       # TODO: Implement alerting for abnormal rejection rates
       # Consider: What rejection rate is "normal" for this system?
       #           How do you distinguish a real problem from noise?
-      # 
+      #
       # Observe the running system before setting thresholds.
+      # I ran the service for around 9 minutes to observe the normal rejection rate under typical load.
+      # In my tests, the rejection rate was around 14.71% of total traffic.
+      # Therefore, I decided to set the threshold at 25% to catch significant anomalies
+      # while avoiding false positives.
       - alert: HighRejectionRate
-        expr: vector(0) > 1
+        expr: sum(rate(agent_rejections_total[5m])) / sum(rate(agent_requests_total{route="/ask"}[5m])) > 0.25
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "TODO"
-          description: "TODO"
+          summary: "Abnormal percentage of requests rejected (>25%)"
+          description: "Over 25% of traffic is being rejected. This may indicate a targeted attack or misconfiguration."
 
       # TODO: Implement alerting for sudden changes in rejection behavior
       # Consider: What constitutes a "spike" vs normal variance?
       #           How do you compare current behavior to baseline?
+      # Alert if rejection rate doubles compared to the 1-hour average
+      # Using offset to compare current 5m rate with the rate 1 hour ago
+      # Added checking condition (> 0.1) to avoid false positives during low traffic or startup
       - alert: RejectionRateSpike
-        expr: vector(0) > 1
+        expr: |
+          sum(rate(agent_rejections_total[5m])) > 2 * sum(rate(agent_rejections_total[5m] offset 1h))
+          and sum(rate(agent_rejections_total[5m])) > 0.1
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "TODO"
-          description: "TODO"
+          summary: "Sudden spike in rejected requests"
+          description: "The rate of rejected requests has doubled compared to 1 hour ago."

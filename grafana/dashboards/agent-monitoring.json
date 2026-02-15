@@ -109,7 +109,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "TODO: This panel should help operators understand rejection behavior. Consider what dimensions are useful for debugging.",
+      "description": "Rejection rate as a fraction of total /ask requests, broken down by prompt version. Useful for comparing rejection behavior across deployments.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -197,13 +197,13 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "vector(0)",
-          "legendFormat": "TODO: Implement rejection rate query",
+          "expr": "sum by (prompt_version)(rate(agent_rejections_total[5m])) / on(prompt_version) sum by (prompt_version)(rate(agent_requests_total{route=\"/ask\"}[5m]))",
+          "legendFormat": "{{prompt_version}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Rejection Rate (TODO: FIX THIS PANEL)",
+      "title": "Rejection Rate by Prompt Version",
       "type": "timeseries"
     },
     {
@@ -292,13 +292,13 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "vector(0)",
-          "legendFormat": "TODO",
+          "expr": "sum by (reason)(rate(agent_rejections_total[5m]))",
+          "legendFormat": "{{reason}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Rejections by Reason (TODO: FIX)",
+      "title": "Rejections by Reason",
       "type": "timeseries"
     },
     {
@@ -466,13 +466,13 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "vector(0)",
-          "legendFormat": "TODO",
+          "expr": "sum(rate(agent_rejections_total[5m])) / sum(rate(agent_requests_total{route=\"/ask\"}[5m]))",
+          "legendFormat": "Rejection Rate",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Overall Rejection Rate (TODO: FIX)",
+      "title": "Overall Rejection Rate",
       "type": "stat"
     },
     {
@@ -676,6 +676,168 @@
         }
       ],
       "title": "API Status",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "last"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum by (status_code)(rate(agent_http_responses_total[5m]))",
+          "legendFormat": "HTTP {{status_code}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Responses by Status Code",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(agent_exceptions_total[5m]))",
+          "legendFormat": "Exceptions/s",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Exception Rate",
       "type": "stat"
     }
   ],

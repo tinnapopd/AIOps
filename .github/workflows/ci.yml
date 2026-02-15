@@ -1,12 +1,3 @@
-# TODO: Implement CI/CD pipeline
-#
-# This workflow should ensure code quality before deployment.
-# Consider: What checks are necessary? How do you gate deployments?
-#           How can someone verify a deployment occurred?
-#
-# The eval-runner service exists for a reason. The deployment/ directory
-# contains a manifest that may be useful.
-
 name: CI/CD Pipeline
 
 on:
@@ -15,9 +6,141 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PYTHON_VERSION: "3.11"
+  MIN_COVERAGE: "80"
+
 jobs:
-  # TODO: Design and implement your pipeline
-  placeholder:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      - run: exit 1
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r agent-api/requirements.txt
+          pip install -r eval-runner/requirements.txt
+          pip install -r traffic-generator/requirements.txt
+          pip install pytest pytest-cov ruff bandit
+
+      # Code Quality Checks
+      - name: Lint (Ruff)
+        run: ruff check .
+
+      - name: Format check (Ruff)
+        run: ruff format . --check
+
+      - name: Security scan (Bandit)
+        run: bandit -r agent-api eval-runner traffic-generator
+
+      # Test and Coverage
+      - name: Run tests with coverage (if tests exist)
+        run: |
+          TEST_FILES=$(find . -type f \( -name "test_*.py" -o -name "*_test.py" \))
+
+          if [ -n "$TEST_FILES" ]; then
+            pytest agent-api/ eval-runner/ traffic-generator/ \
+              --junitxml=junit/test-results.xml \
+              --cov=agent-api --cov=eval-runner --cov=traffic-generator \
+              --cov-report=xml \
+              --cov-report=html \
+              --cov-fail-under=${MIN_COVERAGE}
+          else
+            echo "No tests found. Skipping pytest."
+          fi
+
+      - name: Upload test results (if any)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: junit/
+        if: ${{ always() }}
+
+  build-and-eval:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build docker images
+        run: docker compose build
+
+      - name: Start agent-api service (LLM Agent API Service)
+        run: |
+          docker compose up -d agent-api
+          echo "Waiting for agent-api to be healthy [LIMIT 30 SEC] ..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/healthz | grep -q "healthy"; then
+              echo "agent-api is healthy!"
+              break
+            fi
+            sleep 1
+          done
+          if [ "$i" -eq 30 ]; then
+            echo "agent-api failed to become healthy in time."
+            docker compose logs agent-api
+            exit 1
+          fi
+
+      - name: Run evaluation
+        run: docker compose run --rm eval-runner
+
+      - name: Upload evaluation results (retain for 30 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.sha }}
+          path: eval-results/
+          retention-days: 30
+        if: ${{ always() }}
+
+      - name: Stop all services
+        run: docker compose down -v
+        if: ${{ always() }}
+
+  update-deployment-manifest:
+    runs-on: ubuntu-latest
+    needs: build-and-eval
+
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      # Grant write permissions to push deployment results back to the repository
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Set environment variables for deployment history
+        run: |
+          echo "TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+          echo "COMMIT_SHA=${{ github.sha }}" >> $GITHUB_ENV
+          echo "DEPLOYED_BY=${{ github.actor }}" >> $GITHUB_ENV
+
+      - name: Update manifest with commit SHA
+        run: |
+          echo "Updating deployment manifest with commit SHA: ${{ env.COMMIT_SHA }}"
+          sed -i "s|image_tag:.*|image_tag: \"${{ env.COMMIT_SHA }}\"|" deployment/manifest.yml
+
+          echo "Appending deployment history entry..."
+          echo "| ${{ env.TIMESTAMP }} | ${{ env.COMMIT_SHA }} | ${{ env.DEPLOYED_BY }} |" >> deployment/manifest.yml
+
+          echo "=== Updated deployment manifest ==="
+          cat deployment/manifest.yml
+
+      - name: Commit and push manifest changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deployment/manifest.yml
+          git diff --cached --quiet && echo "No manifest changes to commit" && exit 0
+          git commit -m "ci: update deployment manifest with new image tag: ${{ env.COMMIT_SHA }} [skip ci]"
+          git push origin main
