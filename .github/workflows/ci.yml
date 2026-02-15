@@ -1,0 +1,23 @@
+# TODO: Implement CI/CD pipeline
+#
+# This workflow should ensure code quality before deployment.
+# Consider: What checks are necessary? How do you gate deployments?
+#           How can someone verify a deployment occurred?
+#
+# The eval-runner service exists for a reason. The deployment/ directory
+# contains a manifest that may be useful.
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # TODO: Design and implement your pipeline
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1

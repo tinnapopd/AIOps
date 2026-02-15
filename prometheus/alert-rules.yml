@@ -1,0 +1,37 @@
+groups:
+  - name: agent-api-alerts
+    rules:
+      - alert: AgentAPIDown
+        expr: up{job="agent-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Agent API is down"
+          description: "The agent API has been unreachable for more than 1 minute."
+
+      # TODO: Implement alerting for abnormal rejection rates
+      # Consider: What rejection rate is "normal" for this system?
+      #           How do you distinguish a real problem from noise?
+      # 
+      # Observe the running system before setting thresholds.
+      - alert: HighRejectionRate
+        expr: vector(0) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TODO"
+          description: "TODO"
+
+      # TODO: Implement alerting for sudden changes in rejection behavior
+      # Consider: What constitutes a "spike" vs normal variance?
+      #           How do you compare current behavior to baseline?
+      - alert: RejectionRateSpike
+        expr: vector(0) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TODO"
+          description: "TODO"

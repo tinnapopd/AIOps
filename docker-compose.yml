@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # LLM Agent API Service
+  agent-api:
+    build:
+      context: ./agent-api
+      dockerfile: Dockerfile
+    container_name: agent-api
+    ports:
+      - "8080:8080"
+    environment:
+      - PROMPT_VERSION=${PROMPT_VERSION:-v1.0.0}
+      - PORT=8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - aiops-network
+
+  # Traffic Generator
+  traffic-generator:
+    build:
+      context: ./traffic-generator
+      dockerfile: Dockerfile
+    container_name: traffic-generator
+    environment:
+      - TARGET_URL=http://agent-api:8080
+      - REQUEST_INTERVAL_MS=${REQUEST_INTERVAL_MS:-500}
+      - REJECTION_MIX_RATIO=${REJECTION_MIX_RATIO:-0.15}
+    depends_on:
+      agent-api:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - aiops-network
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - aiops-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - aiops-network
+
+  # Eval Runner (on-demand)
+  eval-runner:
+    build:
+      context: ./eval-runner
+      dockerfile: Dockerfile
+    container_name: eval-runner
+    environment:
+      - AGENT_API_URL=http://agent-api:8080
+      - MIN_GOLDEN_ACCURACY=${MIN_GOLDEN_ACCURACY:-0.90}
+      - MAX_GOLDEN_REJECTION_RATE=${MAX_GOLDEN_REJECTION_RATE:-0.05}
+      - MIN_ADVERSARIAL_REJECTION_RATE=${MIN_ADVERSARIAL_REJECTION_RATE:-0.60}
+    volumes:
+      - ./eval-results:/app/results
+    depends_on:
+      agent-api:
+        condition: service_healthy
+    profiles:
+      - eval
+    networks:
+      - aiops-network
+
+networks:
+  aiops-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

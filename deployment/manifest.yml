@@ -1,0 +1,46 @@
+# =============================================================
+# Deployment Manifest
+# =============================================================
+# This file represents a production deployment configuration.
+# 
+# CANDIDATE TASK: Your CD pipeline should update this file
+# with the new image tag on successful deployments to main.
+#
+# The image_tag field should be updated to the commit SHA
+# when a deployment occurs.
+# =============================================================
+
+apiVersion: v1
+kind: deployment
+metadata:
+  name: agent-api
+  environment: production
+
+spec:
+  replicas: 2
+  
+  container:
+    name: agent-api
+    # TODO: This should be updated by the CD pipeline
+    image_tag: "latest"
+    port: 8080
+    
+    env:
+      - name: PROMPT_VERSION
+        value: "v1.0.0"
+    
+    resources:
+      cpu: "500m"
+      memory: "512Mi"
+    
+    healthcheck:
+      path: /healthz
+      interval: 10s
+      timeout: 5s
+
+# Deployment History (updated by CI/CD):
+# -------------------------------------------------------------
+# | Timestamp | Commit SHA | Deployed By |
+# -------------------------------------------------------------
+# | (will be populated by CD pipeline)  |
+# -------------------------------------------------------------
