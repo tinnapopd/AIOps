@@ -40,7 +40,7 @@ ACCEPTED_COUNT = Counter(
 REJECTION_COUNT = Counter(
     "agent_rejections_total",
     "Total number of requests rejected by the agent API",
-    ["prompt_version", "reason"],
+    ["prompt_version", "reason", "pattern_id"],
 )
 
 # Pattern-level rejection metrics
@@ -83,53 +83,53 @@ MESSAGE_LENGTH = Histogram(
 # Rejection patterns - deterministic classification based on message content
 REJECTION_PATTERNS = {
     "prompt_injection": [
-        r"ignore\s+(all\s+)?(previous\s+)?instructions",
-        r"system\s+prompt",
-        r"disregard\s+(all\s+)?(previous\s+)?",
-        r"forget\s+(all\s+)?(previous\s+)?instructions",
-        r"new\s+instructions",
-        r"override\s+(all\s+)?rules",
-        r"jailbreak",
-        r"bypass\s+(safety|filter|restriction)",
+        (r"ignore\s+(all\s+)?(previous\s+)?instructions", "pi_1"),
+        (r"system\s+prompt", "pi_2"),
+        (r"disregard\s+(all\s+)?(previous\s+)?", "pi_3"),
+        (r"forget\s+(all\s+)?(previous\s+)?instructions", "pi_4"),
+        (r"new\s+instructions", "pi_5"),
+        (r"override\s+(all\s+)?rules", "pi_6"),
+        (r"jailbreak", "pi_7"),
+        (r"bypass\s+(safety|filter|restriction)", "pi_8"),
     ],
     "secrets_request": [
-        r"password",
-        r"api[\s_-]?key",
-        r"secret[\s_-]?key",
-        r"access[\s_-]?token",
-        r"private[\s_-]?key",
-        r"credentials",
-        r"auth[\s_-]?token",
-        r"bearer[\s_-]?token",
+        (r"password", "sr_1"),
+        (r"api[\s_-]?key", "sr_2"),
+        (r"secret[\s_-]?key", "sr_3"),
+        (r"access[\s_-]?token", "sr_4"),
+        (r"private[\s_-]?key", "sr_5"),
+        (r"credentials", "sr_6"),
+        (r"auth[\s_-]?token", "sr_7"),
+        (r"bearer[\s_-]?token", "sr_8"),
     ],
     "dangerous_action": [
-        r"restart\s+prod",
-        r"delete\s+(the\s+)?database",
-        r"drop\s+table",
-        r"rm\s+-rf",
-        r"shutdown\s+server",
-        r"execute\s+command",
-        r"run\s+as\s+root",
-        r"sudo\s+",
-        r"format\s+(hard\s+)?drive",
-        r"wipe\s+(all\s+)?data",
+        (r"restart\s+prod", "da_1"),
+        (r"delete\s+(the\s+)?database", "da_2"),
+        (r"drop\s+table", "da_3"),
+        (r"rm\s+-rf", "da_4"),
+        (r"shutdown\s+server", "da_5"),
+        (r"execute\s+command", "da_6"),
+        (r"run\s+as\s+root", "da_7"),
+        (r"sudo\s+", "da_8"),
+        (r"format\s+(hard\s+)?drive", "da_9"),
+        (r"wipe\s+(all\s+)?data", "da_10"),
     ],
 }
 
 
-def classify_rejection(message: str) -> tuple[bool, str | None]:
+def classify_rejection(message: str) -> tuple[bool, str | None, str | None]:
     """
-    Classify whether a message should be rejected and return the reason.
-    Returns (rejected, reason) tuple.
+    Classify whether a message should be rejected and return the reason and pattern_id.
+    Returns (rejected, reason, pattern_id) tuple.
     """
     message_lower = message.lower()
 
     for reason, patterns in REJECTION_PATTERNS.items():
-        for pattern in patterns:
+        for pattern, pattern_id in patterns:
             if re.search(pattern, message_lower):
-                return True, reason
+                return True, reason, pattern_id
 
-    return False, None
+    return False, None, None
 
 
 def generate_response(message: str) -> str:
@@ -168,17 +168,19 @@ def ask():
             ), 400
 
         message = data["message"]
-        rejected, reason = classify_rejection(message)
+        rejected, reason, pattern_id = classify_rejection(message)
 
         if rejected:
             # TODO: Implement rejection tracking here
             REJECTION_COUNT.labels(
                 prompt_version=PROMPT_VERSION,
                 reason=reason,
+                pattern_id=pattern_id,
             ).inc()
             response = {
                 "rejected": True,
                 "reason": reason,
+                "pattern_id": pattern_id,
                 "prompt_version": PROMPT_VERSION,
                 "answer": f"I cannot process this request due to: {reason}",
             }
@@ -186,6 +188,7 @@ def ask():
             response = {
                 "rejected": False,
                 "reason": None,
+                "pattern_id": None,
                 "prompt_version": PROMPT_VERSION,
                 "answer": generate_response(message),
             }
