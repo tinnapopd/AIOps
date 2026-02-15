@@ -77,15 +77,16 @@ jobs:
         run: |
           docker compose up -d agent-api
           echo "Waiting for agent-api to be healthy [LIMIT 30 SEC] ..."
-          for i in {1..30}; do
-            if curl -s http://localhost:8000/healthz | grep "OK" > /dev/null; then
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/healthz | grep -q "healthy"; then
               echo "agent-api is healthy!"
               break
             fi
             sleep 1
           done
-          if [ $i -eq 30 ]; then
+          if [ "$i" -eq 30 ]; then
             echo "agent-api failed to become healthy in time."
+            docker compose logs agent-api
             exit 1
           fi
 
