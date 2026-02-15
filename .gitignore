@@ -26,3 +26,6 @@ grafana-data/
 
 # Logs
 *.log
+
+# Internal Instructions
+CANDIDATE_INSTRUCTIONS.md
