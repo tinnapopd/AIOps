@@ -38,3 +38,4 @@ junit/
 htmlcov/
 coverage.xml
 .coverage
+.pytest_cache/
