@@ -15,9 +15,59 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PYTHON_VERSION: "3.11"
+  MIN_COVERAGE: "80"
+
 jobs:
-  # TODO: Design and implement your pipeline
-  placeholder:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      - run: exit 1
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r agent-api/requirements.txt
+          pip install -r eval-runner/requirements.txt
+          pip install -r traffic-generator/requirements.txt
+          pip install pytest pytest-cov ruff bandit
+
+      # Code Quality Checks
+      - name: Lint (Ruff)
+        run: ruff check .
+
+      - name: Format check (Ruff)
+        run: ruff format . --check
+
+      - name: Security scan (Bandit)
+        run: bandit -r agent-api eval-runner traffic-generator
+
+      # Test and Coverage
+      - name: Run tests with coverage (if tests exist)
+        run: |
+          TEST_FILES=$(find . -type f \( -name "test_*.py" -o -name "*_test.py" \))
+
+          if [ -n "$TEST_FILES" ]; then
+            pytest agent-api/ eval-runner/ traffic-generator/ \
+              --junitxml=junit/test-results.xml \
+              --cov=agent-api --cov=eval-runner --cov=traffic-generator \
+              --cov-report=xml \
+              --cov-report=html \
+              --cov-fail-under=${MIN_COVERAGE}
+          else
+            echo "No tests found. Skipping pytest."
+          fi
+
+      - name: Upload test results (if any)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: junit/
+        if: ${{ always() }}
