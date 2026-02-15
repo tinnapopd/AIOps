@@ -242,9 +242,7 @@ def healthz():
     route = "/healthz"
     REQUEST_COUNT.labels(prompt_version=PROMPT_VERSION, route=route).inc()
     HTTP_STATUS_COUNT.labels(route=route, status_code="200").inc()
-    return jsonify(
-        {"status": "healthy", "prompt_version": PROMPT_VERSION}
-    ), 200
+    return jsonify({"status": "healthy", "prompt_version": PROMPT_VERSION}), 200
 
 
 @app.route("/metrics", methods=["GET"])
