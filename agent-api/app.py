@@ -13,13 +13,28 @@ app = Flask(__name__)
 
 PROMPT_VERSION = os.environ.get("PROMPT_VERSION", "v1.0.0")
 
-# Prometheus metrics
+# Prometheus Metrics
+# Each metric answers a specific operational question:
+#   - Is the system healthy?
+#   - Are users being impacted?
+#   - Are we under attack?
+#   - Did a deployment break something?
+
+# Traffic and Throughput Metrics
 REQUEST_COUNT = Counter(
     "agent_requests_total",
     "Total number of requests to the agent API",
     ["prompt_version", "route"],
 )
 
+# Success / Acceptance Metrics
+ACCEPTED_COUNT = Counter(
+    "agent_accepted_total",
+    "Total number of accepted requests",
+    ["prompt_version", "route"],
+)
+
+# Rejection Metrics
 # TODO: How would you track rejection metrics for observability?
 # Consider: What information would operators need when debugging rejection spikes?
 REJECTION_COUNT = Counter(
@@ -28,11 +43,41 @@ REJECTION_COUNT = Counter(
     ["prompt_version", "reason"],
 )
 
+# Pattern-level rejection metrics
+REJECTION_PATTERN_COUNT = Counter(
+    "agent_rejection_pattern_total",
+    "Total number of times a specific rejection pattern matched",
+    ["prompt_version", "reason", "pattern_id"],
+)
+
+# HTTP Response Codes
+HTTP_STATUS_COUNT = Counter(
+    "agent_http_responses_total",
+    "HTTP responses by status code",
+    ["route", "status_code"],
+)
+
+# Exception Tracking
+EXCEPTION_COUNT = Counter(
+    "agent_exceptions_total",
+    "Total number of unhandled exceptions",
+    ["route"],
+)
+
+# Latency Monitoring
 REQUEST_LATENCY = Histogram(
     "agent_request_latency_seconds",
     "Request latency in seconds",
     ["prompt_version", "route"],
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+)
+
+# Input Size Distribution
+MESSAGE_LENGTH = Histogram(
+    "agent_message_length_bytes",
+    "Length of input message in bytes",
+    ["prompt_version"],
+    buckets=[10, 50, 100, 250, 500, 1000, 2000, 5000],
 )
 
 # Rejection patterns - deterministic classification based on message content
