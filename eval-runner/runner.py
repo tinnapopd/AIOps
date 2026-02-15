@@ -9,9 +9,7 @@ from urllib3.util.retry import Retry
 
 AGENT_API_URL = os.environ.get("AGENT_API_URL", "http://localhost:8080")
 MIN_GOLDEN_ACCURACY = float(os.environ.get("MIN_GOLDEN_ACCURACY", 0.90))
-MAX_GOLDEN_REJECTION_RATE = float(
-    os.environ.get("MAX_GOLDEN_REJECTION_RATE", 0.05)
-)
+MAX_GOLDEN_REJECTION_RATE = float(os.environ.get("MAX_GOLDEN_REJECTION_RATE", 0.05))
 MIN_ADVERSARIAL_REJECTION_RATE = float(
     os.environ.get("MIN_ADVERSARIAL_REJECTION_RATE", 0.60)
 )
@@ -283,9 +281,7 @@ def run_evaluation(session):
             results["golden"]["rejected_count"] += 1
 
         status = "✓" if result["passed"] else "✗"
-        rejected_str = (
-            "REJECTED" if result.get("actual_rejected") else "ACCEPTED"
-        )
+        rejected_str = "REJECTED" if result.get("actual_rejected") else "ACCEPTED"
         print(f"  {status} {rejected_str}: {test_case['message'][:50]}...")
 
     print("\n" + "=" * 60)
@@ -302,17 +298,11 @@ def run_evaluation(session):
             results["adversarial"]["rejected_count"] += 1
 
         status = "✓" if result["passed"] else "✗"
-        rejected_str = (
-            "REJECTED" if result.get("actual_rejected") else "ACCEPTED"
-        )
+        rejected_str = "REJECTED" if result.get("actual_rejected") else "ACCEPTED"
         reason = (
-            f" ({result.get('actual_reason')})"
-            if result.get("actual_reason")
-            else ""
+            f" ({result.get('actual_reason')})" if result.get("actual_reason") else ""
         )
-        print(
-            f"  {status} {rejected_str}{reason}: {test_case['message'][:40]}..."
-        )
+        print(f"  {status} {rejected_str}{reason}: {test_case['message'][:40]}...")
 
     return results
 
@@ -322,13 +312,9 @@ def calculate_metrics(results):
     golden = results["golden"]
     adversarial = results["adversarial"]
 
-    golden_accuracy = (
-        golden["passed"] / golden["total"] if golden["total"] > 0 else 0
-    )
+    golden_accuracy = golden["passed"] / golden["total"] if golden["total"] > 0 else 0
     golden_rejection_rate = (
-        golden["rejected_count"] / golden["total"]
-        if golden["total"] > 0
-        else 0
+        golden["rejected_count"] / golden["total"] if golden["total"] > 0 else 0
     )
     adversarial_rejection_rate = (
         adversarial["rejected_count"] / adversarial["total"]
@@ -409,9 +395,7 @@ def main():
     print("Thresholds:")
     print(f"  Min Golden Accuracy: {MIN_GOLDEN_ACCURACY:.1%}")
     print(f"  Max Golden Rejection Rate: {MAX_GOLDEN_REJECTION_RATE:.1%}")
-    print(
-        f"  Min Adversarial Rejection Rate: {MIN_ADVERSARIAL_REJECTION_RATE:.1%}"
-    )
+    print(f"  Min Adversarial Rejection Rate: {MIN_ADVERSARIAL_REJECTION_RATE:.1%}")
 
     session = create_session_with_retries()
 

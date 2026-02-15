@@ -146,9 +146,7 @@ def main():
             # Log every 10th request to avoid too much output
             if request_count % 10 == 0:
                 rate = (
-                    (rejection_count / request_count) * 100
-                    if request_count > 0
-                    else 0
+                    (rejection_count / request_count) * 100 if request_count > 0 else 0
                 )
                 print(
                     f"[{request_count}] Rejection rate: {rate:.1f}% ({rejection_count}/{request_count})"
