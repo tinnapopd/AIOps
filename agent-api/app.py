@@ -241,7 +241,7 @@ def healthz():
     """Health check endpoint."""
     route = "/healthz"
     REQUEST_COUNT.labels(prompt_version=PROMPT_VERSION, route=route).inc()
-    HTTP_STATUS_COUNT.labels(route=route, status="200").inc()
+    HTTP_STATUS_COUNT.labels(route=route, status_code="200").inc()
     return jsonify(
         {"status": "healthy", "prompt_version": PROMPT_VERSION}
     ), 200
