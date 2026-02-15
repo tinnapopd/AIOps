@@ -242,7 +242,9 @@ def healthz():
     route = "/healthz"
     REQUEST_COUNT.labels(prompt_version=PROMPT_VERSION, route=route).inc()
     HTTP_STATUS_COUNT.labels(route=route, status_code="200").inc()
-    return jsonify({"status": "healthy", "prompt_version": PROMPT_VERSION}), 200
+    return jsonify(
+        {"status": "healthy", "prompt_version": PROMPT_VERSION}
+    ), 200
 
 
 @app.route("/metrics", methods=["GET"])
@@ -253,4 +255,4 @@ def metrics():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)  # nosec B104 - bind all interfaces required for container networking

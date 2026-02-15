@@ -75,12 +75,12 @@ def create_session_with_retries():
 
 def get_random_message():
     """Get a random message, with REJECTION_MIX_RATIO chance of being a rejection-triggering message."""
-    if random.random() < REJECTION_MIX_RATIO:
+    if random.random() < REJECTION_MIX_RATIO:  # nosec B311 - not used for security
         # Pick a random rejection category and message
-        category = random.choice(list(REJECTION_MESSAGES.keys()))
-        return random.choice(REJECTION_MESSAGES[category])
+        category = random.choice(list(REJECTION_MESSAGES.keys()))  # nosec B311
+        return random.choice(REJECTION_MESSAGES[category])  # nosec B311
     else:
-        return random.choice(NORMAL_MESSAGES)
+        return random.choice(NORMAL_MESSAGES)  # nosec B311
 
 
 def wait_for_api(session, max_wait_seconds=60):
@@ -146,7 +146,9 @@ def main():
             # Log every 10th request to avoid too much output
             if request_count % 10 == 0:
                 rate = (
-                    (rejection_count / request_count) * 100 if request_count > 0 else 0
+                    (rejection_count / request_count) * 100
+                    if request_count > 0
+                    else 0
                 )
                 print(
                     f"[{request_count}] Rejection rate: {rate:.1f}% ({rejection_count}/{request_count})"
