@@ -22,7 +22,7 @@ spec:
   container:
     name: agent-api
     # TODO: This should be updated by the CD pipeline
-    image_tag: "ad176dc3c1d8a919d2745fc89bec7616e555912f"
+    image_tag: "2eb839644493872445fc2ebce8bff9067bd8fa75"
     port: 8080
 
     env:
@@ -47,3 +47,4 @@ spec:
 # | 2026-02-15T16:19:33Z | 3d80be3b9e5e08edcee48a127d1da27b0d7d1bf1 | tinnapopd |
 # | 2026-02-15T16:28:08Z | f554bd56c52d3b211a5aaa13475b1522565934f7 | tinnapopd |
 # | 2026-02-16T02:13:20Z | ad176dc3c1d8a919d2745fc89bec7616e555912f | tinnapopd |
+# | 2026-02-16T13:58:47Z | 2eb839644493872445fc2ebce8bff9067bd8fa75 | tinnapopd |
