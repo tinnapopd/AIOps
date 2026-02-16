@@ -34,13 +34,12 @@ ACCEPTED_COUNT = Counter(
     ["prompt_version", "route"],
 )
 
-# Rejection Metrics
-# TODO: How would you track rejection metrics for observability?
-# Consider: What information would operators need when debugging rejection spikes?
+# Rejection Metrics — aggregate by reason (use REJECTION_PATTERN_COUNT for pattern-level detail)
+# Operators can quickly see which rejection category is spiking without pattern-level noise
 REJECTION_COUNT = Counter(
     "agent_rejections_total",
     "Total number of requests rejected by the agent API",
-    ["prompt_version", "reason", "pattern_id"],
+    ["prompt_version", "reason"],
 )
 
 # Pattern-level rejection metrics
@@ -162,7 +161,6 @@ def ask():
             REJECTION_COUNT.labels(
                 prompt_version=PROMPT_VERSION,
                 reason="invalid_request",
-                pattern_id="none",
             ).inc()
 
             HTTP_STATUS_COUNT.labels(route=route, status_code="400").inc()
@@ -185,11 +183,9 @@ def ask():
         rejected, reason, pattern_id = classify_rejection(message)
 
         if rejected:
-            # TODO: Implement rejection tracking here
             REJECTION_COUNT.labels(
                 prompt_version=PROMPT_VERSION,
                 reason=reason,
-                pattern_id=pattern_id,
             ).inc()
 
             REJECTION_PATTERN_COUNT.labels(
