@@ -10,10 +10,6 @@ groups:
           summary: "Agent API is down"
           description: "The agent API has been unreachable for more than 1 minute."
 
-      # TODO: Implement alerting for abnormal rejection rates
-      # Consider: What rejection rate is "normal" for this system?
-      #           How do you distinguish a real problem from noise?
-      #
       # Observe the running system before setting thresholds.
       # I ran the service for around 9 minutes to observe the normal rejection rate under typical load.
       # In my tests, the rejection rate was around 14.71% of total traffic.
@@ -28,9 +24,6 @@ groups:
           summary: "Abnormal percentage of requests rejected (>25%)"
           description: "Over 25% of traffic is being rejected. This may indicate a targeted attack or misconfiguration."
 
-      # TODO: Implement alerting for sudden changes in rejection behavior
-      # Consider: What constitutes a "spike" vs normal variance?
-      #           How do you compare current behavior to baseline?
       # Alert if rejection rate doubles compared to the 1-hour average
       # Using offset to compare current 5m rate with the rate 1 hour ago
       # Added checking condition (> 0.1) to avoid false positives during low traffic or startup
@@ -44,3 +37,51 @@ groups:
         annotations:
           summary: "Sudden spike in rejected requests"
           description: "The rate of rejected requests has doubled compared to 1 hour ago."
+
+      # --------------------------------------------------------------------- #
+      # Addtional alerting for extreme cases of high rejection rates
+      # --------------------------------------------------------------------- #
+
+      # to ensure critical issues are promptly addressed.
+      # Critical rejection rate — escalation tier for extreme cases
+      # If more than half of traffic is rejected, something is seriously wrong
+      - alert: CriticalRejectionRate
+        expr: sum(rate(agent_rejections_total[5m])) / sum(rate(agent_requests_total{route="/ask"}[5m])) > 0.50
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical: >50% of requests are being rejected"
+          description: "Over half of all traffic is being rejected. Likely active attack or major misconfiguration. Immediate investigation required."
+
+      # Any unhandled exceptions indicate application bugs
+      # Threshold: > 0 sustained for 2 minutes (exceptions should never happen in normal operation)
+      - alert: HighExceptionRate
+        expr: sum(rate(agent_exceptions_total[5m])) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Unhandled exceptions detected in agent-api"
+          description: "The agent API is throwing unhandled exceptions. Check application logs for stack traces."
+
+      # P99 latency above 1 second indicates performance degradation
+      # Normal operation is low-ms range for this regex-based classifier
+      - alert: HighLatencyP99
+        expr: histogram_quantile(0.99, sum by (le)(rate(agent_request_latency_seconds_bucket{route="/ask"}[5m]))) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99 latency exceeds 1 second"
+          description: "The 99th percentile request latency has been above 1s for 5 minutes. Possible resource exhaustion or degraded performance."
+
+      # HTTP 5xx errors indicate server-side failures
+      - alert: HighErrorRate
+        expr: sum(rate(agent_http_responses_total{status_code="500"}[5m])) / sum(rate(agent_http_responses_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate (>5%)"
+          description: "More than 5% of HTTP responses are 500s. The application may be partially broken."

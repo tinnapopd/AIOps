@@ -159,11 +159,11 @@
               },
               {
                 "color": "yellow",
-                "value": 0.05
+                "value": 0.2
               },
               {
                 "color": "red",
-                "value": 0.08
+                "value": 0.25
               }
             ]
           },
@@ -387,7 +387,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, rate(agent_request_latency_seconds_bucket{route=\"/ask\"}[5m]))",
+          "expr": "histogram_quantile(0.95, sum by (le, prompt_version)(rate(agent_request_latency_seconds_bucket{route=\"/ask\"}[5m])))",
           "legendFormat": "p95 {{prompt_version}}",
           "range": true,
           "refId": "A"
@@ -398,7 +398,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, rate(agent_request_latency_seconds_bucket{route=\"/ask\"}[5m]))",
+          "expr": "histogram_quantile(0.50, sum by (le, prompt_version)(rate(agent_request_latency_seconds_bucket{route=\"/ask\"}[5m])))",
           "hide": false,
           "legendFormat": "p50 {{prompt_version}}",
           "range": true,
@@ -428,11 +428,11 @@
               },
               {
                 "color": "yellow",
-                "value": 0.05
+                "value": 0.2
               },
               {
                 "color": "red",
-                "value": 0.08
+                "value": 0.25
               }
             ]
           },

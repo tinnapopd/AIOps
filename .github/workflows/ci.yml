@@ -10,6 +10,11 @@ env:
   PYTHON_VERSION: "3.11"
   MIN_COVERAGE: "80"
 
+# Prevent concurrent runs of the same workflow
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -77,14 +82,16 @@ jobs:
         run: |
           docker compose up -d agent-api
           echo "Waiting for agent-api to be healthy [LIMIT 30 SEC] ..."
+          HEALTHY=false
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8080/healthz | grep -q "healthy"; then
               echo "agent-api is healthy!"
+              HEALTHY=true
               break
             fi
             sleep 1
           done
-          if [ "$i" -eq 30 ]; then
+          if [ "$HEALTHY" != "true" ]; then
             echo "agent-api failed to become healthy in time."
             docker compose logs agent-api
             exit 1
@@ -131,7 +138,7 @@ jobs:
           sed -i "s|image_tag:.*|image_tag: \"${{ env.COMMIT_SHA }}\"|" deployment/manifest.yml
 
           echo "Appending deployment history entry..."
-          echo "| ${{ env.TIMESTAMP }} | ${{ env.COMMIT_SHA }} | ${{ env.DEPLOYED_BY }} |" >> deployment/manifest.yml
+          echo "# | ${{ env.TIMESTAMP }} | ${{ env.COMMIT_SHA }} | ${{ env.DEPLOYED_BY }} |" >> deployment/manifest.yml
 
           echo "=== Updated deployment manifest ==="
           cat deployment/manifest.yml
