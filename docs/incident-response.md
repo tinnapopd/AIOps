@@ -31,8 +31,15 @@ Production runs on **Kubernetes** (see `deployment/manifest.yml`). The agent-api
 
 **Alert thresholds (from [prometheus/alert-rules.yml](../prometheus/alert-rules.yml)):**
 
-- `HighRejectionRate`: >25% of `/ask` requests rejected over a 5-minute window, sustained for 5 minutes.
-- `RejectionRateSpike`: Current 5-min rejection rate is >2× the rate from 1 hour ago (and rate > 0.1 req/s), sustained for 5 minutes.
+| Alert                   | Condition                                                                        | For | Severity |
+| ----------------------- | -------------------------------------------------------------------------------- | --- | -------- |
+| `AgentAPIDown`          | `up{job="agent-api"} == 0`                                                       | 1m  | critical |
+| `HighRejectionRate`     | >25% of `/ask` requests rejected (5-min window)                                  | 5m  | warning  |
+| `RejectionRateSpike`    | Current 5-min rejection rate >2× the rate from 1 hour ago (and rate > 0.1 req/s) | 5m  | warning  |
+| `CriticalRejectionRate` | >50% of `/ask` requests rejected (5-min window)                                  | 2m  | critical |
+| `HighExceptionRate`     | Any unhandled exceptions (`agent_exceptions_total` rate > 0)                     | 2m  | critical |
+| `HighLatencyP99`        | P99 request latency >1s                                                          | 5m  | warning  |
+| `HighErrorRate`         | >5% of HTTP responses are 500s                                                   | 2m  | critical |
 
 ---
 
@@ -236,11 +243,16 @@ kubectl exec deploy/agent-api -- curl -s http://localhost:8080/metrics | grep ag
 
 ### 2.8 Open Grafana dashboard
 
-Navigate to `http://localhost:3000` (admin/admin) and open the **Agent Monitoring** dashboard. Inspect:
+Navigate to `http://localhost:3000` (admin/admin) and open the **Agent API Monitoring** dashboard. Inspect:
 
 - **Request Rate** panel — is traffic volume normal?
-- **Rejection Rate** panel — when did the spike begin? Does it correlate with a deployment?
-- **Latency** panels — is the system under resource pressure?
+- **Rejection Rate by Prompt Version** panel — when did the spike begin? Does it correlate with a deployment?
+- **Rejections by Reason** panel — which rejection category is driving the spike?
+- **Request Latency (p50, p95)** panel — is the system under resource pressure?
+- **Overall Rejection Rate** stat — current rejection rate at a glance.
+- **API Status** stat — is the API target up?
+- **HTTP Responses by Status Code** panel — are there 5xx errors?
+- **Exception Rate** stat — are there unhandled exceptions?
 
 ---
 
